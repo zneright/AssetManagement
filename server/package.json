@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "seed": "node seed.js"
   },
   "dependencies": {
     "express": "^4.21.0",
