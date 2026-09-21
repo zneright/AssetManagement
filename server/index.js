@@ -159,6 +159,70 @@ app.get('/api/assets/:id', authenticateToken, async (req, res, next) => {
   }
 });
 
+// magdagdag ng bagong asset sa database
+app.post('/api/assets', authenticateToken, async (req, res, next) => {
+  try {
+    const { AssetName, Category, SerialNumber, Status, EstimatedValue } = req.body;
+
+    // validation: check kung kumpleto lahat ng required fields
+    if (!AssetName || !Category || !SerialNumber || !Status || EstimatedValue === undefined || EstimatedValue === null) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'All fields are required: AssetName, Category, SerialNumber, Status, EstimatedValue.'
+      });
+    }
+
+    // check kung hindi puro space lang
+    if (!String(AssetName).trim() || !String(Category).trim() || !String(SerialNumber).trim() || !String(Status).trim()) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'Fields cannot be empty or whitespace only.'
+      });
+    }
+
+    // check kung valid number yung EstimatedValue at hindi negative
+    const numericValue = parseFloat(EstimatedValue);
+    if (isNaN(numericValue) || numericValue < 0) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'EstimatedValue must be a valid non-negative number.'
+      });
+    }
+
+    const pool = await getPool();
+
+    // check muna if may kaparehas na serial number para iwas duplicate error
+    const existing = await pool.request()
+      .input('serialNumber', sql.NVarChar(100), String(SerialNumber).trim())
+      .query('SELECT Id FROM Assets WHERE SerialNumber = @serialNumber');
+
+    if (existing.recordset.length > 0) {
+      return res.status(409).json({
+        error: 'Conflict',
+        message: `An asset with SerialNumber '${String(SerialNumber).trim()}' already exists.`
+      });
+    }
+
+    // insert gamit parameterized query tapos gamit OUTPUT INSERTED para makuha agad yung bagong record
+    const result = await pool.request()
+      .input('assetName', sql.NVarChar(100), String(AssetName).trim())
+      .input('category', sql.NVarChar(50), String(Category).trim())
+      .input('serialNumber', sql.NVarChar(100), String(SerialNumber).trim())
+      .input('status', sql.NVarChar(50), String(Status).trim())
+      .input('estimatedValue', sql.Decimal(18, 2), numericValue)
+      .query(`
+        INSERT INTO Assets (AssetName, Category, SerialNumber, Status, EstimatedValue)
+        OUTPUT INSERTED.Id, INSERTED.AssetName, INSERTED.Category, INSERTED.SerialNumber, INSERTED.Status, INSERTED.EstimatedValue, INSERTED.CreatedAt
+        VALUES (@assetName, @category, @serialNumber, @status, @estimatedValue)
+      `);
+
+    const newAsset = result.recordset[0];
+    res.status(201).json(newAsset);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 404 Handler for unmatched routes
 app.use((req, res) => {
   res.status(404).json({
