@@ -300,6 +300,39 @@ app.put('/api/assets/:id', authenticateToken, async (req, res, next) => {
   }
 });
 
+// delette asset
+app.delete('/api/assets/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const assetId = parseInt(id, 10);
+    if (isNaN(assetId) || assetId <= 0) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'Asset ID must be a valid positive integer.'
+      });
+    }
+
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.Int, assetId)
+      .query('DELETE FROM Assets WHERE Id = @id');
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({
+        error: 'NotFound',
+        message: `Asset with ID ${assetId} was not found.`
+      });
+    }
+
+    res.status(200).json({
+      message: 'Asset deleted successfully.',
+      id: assetId
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
