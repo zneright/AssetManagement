@@ -168,3 +168,56 @@ All `/api/assets` endpoints require a valid Bearer Token in the `Authorization` 
 | `PUT` | `/api/assets/:id` | Yes | Update asset record (checks serial conflicts excluding self) |
 | `DELETE` | `/api/assets/:id` | Yes | Permanently remove an asset record |
 | `GET` | `/api/health` | No | Health check endpoint |
+
+---
+
+## Testing & Verification Walkthrough
+
+Once both the server and client are running, follow these steps to test each feature:
+
+1. **Authentication**:
+   - Navigate to `http://localhost:5173`.
+   - Enter `admin` and `AdminPassword123!`, then click **Log in**.
+   - Verify redirect to the main dashboard displaying user `@admin`.
+2. **Dashboard Summary & Metrics**:
+   - Verify the 4 summary statistics cards at the top (*Total Assets*, *Total Inventory Value in ₱*, *Active Assets*, *In Repair*).
+3. **Create Asset**:
+   - Click the **+ Add Asset** button in the toolbar.
+   - Fill in the required fields (Asset Name, Category, Serial Number, Status, Estimated Value).
+   - Click **Create** and verify the new row appears immediately in the table and metrics update.
+4. **Search & Filter**:
+   - Type an asset name or serial number into the search bar to test real-time filtering.
+   - Filter by status using the dropdown (*Active*, *In Repair*, *Retired*).
+5. **Update Asset**:
+   - Click **Edit** on any row.
+   - Verify all fields are pre-filled with existing data.
+   - Change the status or value and click **Update** to verify the table reflects the change.
+6. **Delete Asset**:
+   - Click **Delete** on a row.
+   - Verify the Ant Design `Popconfirm` warning appears.
+   - Click **Yes, delete** to confirm removal and verify the row and count update.
+7. **Report Export**:
+   - Click **Export CSV** in the toolbar to download the current table dataset as a `.csv` file.
+8. **Logout**:
+   - Click **Log out** in the top navigation header to terminate the session.
+
+---
+
+## Challenges Encountered & Solutions
+
+1. **SQL Server TCP/IP and Authentication Configuration**:
+   - *Challenge*: SQL Server Express installations often have TCP/IP protocol disabled by default and only allow Windows Authentication, causing connection timeouts when connecting from Node.js `mssql`.
+   - *Solution*: Enabled TCP/IP protocol on static port `1433` in SQL Server Configuration Manager, enabled Mixed Mode (SQL Server and Windows Authentication), and provisioned a dedicated database user with `db_owner` permissions on `AssetTrackerDB`.
+
+2. **Form Pre-fill Synchronization in Modal Dialogs**:
+   - *Challenge*: In Ant Design, calling `form.setFieldsValue()` before modal open animations finish can result in unmounted inputs failing to receive their values when switching between different asset records.
+   - *Solution*: Bound a dynamic `key` matching the record ID (`key={initialValues ? 'edit-' + initialValues.Id : 'new'}`) and passed `initialValues` directly to the `<Form>` component. This ensures React remounts the form synchronously with the selected asset's values.
+
+3. **Duplicate Serial Number Handling on Updates**:
+   - *Challenge*: The database enforces a `UNIQUE` constraint on `SerialNumber`. When updating other attributes of an existing asset without modifying its serial number, a naive uniqueness check would throw a false-positive conflict error.
+   - *Solution*: Added an exclusionary parameter in the duplicate check query (`WHERE SerialNumber = @SerialNumber AND Id != @Id`), allowing an asset to keep its own serial number while preventing conflicts with any other registered asset.
+
+4. **Lightweight Client-side CSV Export**:
+   - *Challenge*: Generating CSV exports without pulling in large external spreadsheet libraries that inflate bundle size.
+   - *Solution*: Implemented a clean, pure JavaScript export utility using `Blob` (`text/csv;charset=utf-8;`) and native download triggering with RFC 4180 quote-escaping to safely handle commas and special characters in asset names.
+
