@@ -93,6 +93,44 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
     return matchesSearch && matchesStatus;
   });
 
+  // export to csv helper para ma download file
+  const handleExportCSV = () => {
+    if (!assets || assets.length === 0) {
+      message.warning('No assets available to export');
+      return;
+    }
+
+    const headers = ['ID', 'Asset Name', 'Category', 'Serial Number', 'Status', 'Estimated Value (PHP)', 'Created At'];
+
+    // i-format bawat row
+    const rows = filteredAssets.map((item) => [
+      item.Id,
+      `"${(item.AssetName || '').replace(/"/g, '""')}"`,
+      `"${(item.Category || '').replace(/"/g, '""')}"`,
+      `"${(item.SerialNumber || '').replace(/"/g, '""')}"`,
+      `"${(item.Status || '').replace(/"/g, '""')}"`,
+      Number(item.EstimatedValue || 0).toFixed(2),
+      `"${item.CreatedAt ? new Date(item.CreatedAt).toISOString().split('T')[0] : ''}"`,
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((r) => r.join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `company_assets_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    message.success(`Exported ${filteredAssets.length} assets to CSV`);
+  };
+
   const columns = [
     {
       title: 'Asset Name',
@@ -221,6 +259,9 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
           />
           <Button type="primary" onClick={handleOpenCreate}>
             + Add Asset
+          </Button>
+          <Button onClick={handleExportCSV}>
+            Export CSV
           </Button>
         </Space>
 
