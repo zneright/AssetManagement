@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Button, Space, Card, Tag } from 'antd';
 import Login from './components/Login';
+import AssetTable from './components/AssetTable';
 
 const { Header, Content, Footer } = Layout;
 const { Title, Text } = Typography;
@@ -73,10 +74,12 @@ function App() {
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           }}
         >
-          <Title level={4} style={{ marginBottom: 8 }}>Assets</Title>
-          <Text type="secondary">
-            Authenticated shell ready. Next phase will attach the live Ant Design asset table.
-          </Text>
+          <div style={{ marginBottom: 16 }}>
+            <Title level={4} style={{ margin: 0 }}>Company Assets</Title>
+            <Text type="secondary">View and track all registered hardware and equipment</Text>
+          </div>
+
+          <AssetTable />
         </Card>
       </Content>
 
