@@ -7,17 +7,37 @@ function AssetModal({ open, onClose, onSuccess, initialValues }) {
   const [submitting, setSubmitting] = useState(false);
   const isEdit = Boolean(initialValues && initialValues.Id);
 
-  // pag nagbago initialValues or nagbukas modal i-set fields
+  const defaultValues = {
+    AssetName: '',
+    Category: 'Electronics',
+    SerialNumber: '',
+    Status: 'Active',
+    EstimatedValue: undefined,
+  };
+
+  const formValues = initialValues
+    ? {
+        AssetName: initialValues.AssetName || '',
+        Category: initialValues.Category || 'Electronics',
+        SerialNumber: initialValues.SerialNumber || '',
+        Status: initialValues.Status || 'Active',
+        EstimatedValue: Number(initialValues.EstimatedValue),
+      }
+    : defaultValues;
+
+  // set fields pag nag bukas modal
   useEffect(() => {
     if (open) {
       if (initialValues) {
-        form.setFieldsValue(initialValues);
+        form.setFieldsValue({
+          AssetName: initialValues.AssetName || '',
+          Category: initialValues.Category || 'Electronics',
+          SerialNumber: initialValues.SerialNumber || '',
+          Status: initialValues.Status || 'Active',
+          EstimatedValue: Number(initialValues.EstimatedValue),
+        });
       } else {
         form.resetFields();
-        form.setFieldsValue({
-          Status: 'Active',
-          Category: 'Electronics',
-        });
       }
     }
   }, [open, initialValues, form]);
@@ -56,7 +76,12 @@ function AssetModal({ open, onClose, onSuccess, initialValues }) {
       destroyOnHidden
       okText={isEdit ? 'Update' : 'Create'}
     >
-      <Form form={form} layout="vertical" preserve={false}>
+      <Form
+        key={open ? (initialValues?.Id ? `edit-${initialValues.Id}` : 'new-asset') : 'closed'}
+        form={form}
+        layout="vertical"
+        initialValues={formValues}
+      >
         <Form.Item
           label="Asset Name"
           name="AssetName"

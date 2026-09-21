@@ -44,7 +44,7 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
 
   // para sa edit naman
   const handleOpenEdit = (record) => {
-    setSelectedAsset(record);
+    setSelectedAsset({ ...record });
     setModalOpen(true);
     if (onEdit) onEdit(record);
   };
