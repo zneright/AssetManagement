@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Typography, Button, Space, Input, Select, message } from 'antd';
+import { Table, Tag, Typography, Button, Space, Input, Select, Popconfirm, message } from 'antd';
 import api from '../api';
 import AssetModal from './AssetModal';
 
@@ -47,6 +47,18 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
     setSelectedAsset({ ...record });
     setModalOpen(true);
     if (onEdit) onEdit(record);
+  };
+
+  // delee handler ng asset
+  const handleDelete = async (record) => {
+    try {
+      await api.delete(`/assets/${record.Id}`);
+      message.success(`Asset "${record.AssetName}" deleted successfully`);
+      setReloadKey((k) => k + 1);
+      if (onDelete) onDelete(record);
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Failed to delete asset');
+    }
   };
 
   // kulay ng status tag
@@ -113,9 +125,18 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
           <Button size="small" onClick={() => handleOpenEdit(record)}>
             Edit
           </Button>
-          <Button size="small" danger onClick={() => onDelete && onDelete(record)}>
-            Delete
-          </Button>
+          <Popconfirm
+            title="Delete this asset?"
+            description={`Are you sure you want to delete ${record.AssetName}?`}
+            onConfirm={() => handleDelete(record)}
+            okText="Yes, delete"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true }}
+          >
+            <Button size="small" danger>
+              Delete
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
