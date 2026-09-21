@@ -11,16 +11,15 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Core Middleware
 app.use(cors());
 app.use(express.json());
 
-// Health Check Endpoint
+// health chek
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// test connection lang sa db
+// db test endpoint
 app.get('/api/test-db', async (req, res, next) => {
   try {
     const pool = await getPool();
@@ -38,12 +37,11 @@ app.get('/api/test-db', async (req, res, next) => {
   }
 });
 
-// login route para makakuha ng token si user
+// login
 app.post('/api/login', async (req, res, next) => {
   try {
     const { username, password } = req.body;
 
-    // check muna if may laman yung username at password
     if (!username || !password || !username.trim() || !password.trim()) {
       return res.status(400).json({
         error: 'ValidationError',
@@ -51,15 +49,12 @@ app.post('/api/login', async (req, res, next) => {
       });
     }
 
-    // hanapin si user sa database gamit parameterized query
     const pool = await getPool();
     const result = await pool.request()
       .input('username', sql.NVarChar(50), username.trim())
       .query('SELECT Id, Username, Password, FullName FROM Users WHERE Username = @username');
 
     const user = result.recordset[0];
-
-    // pag walang nahanap na user sa db
     if (!user) {
       return res.status(401).json({
         error: 'Unauthorized',
@@ -67,7 +62,6 @@ app.post('/api/login', async (req, res, next) => {
       });
     }
 
-    // compare password hash gamit bcrypt
     const isPasswordValid = await bcrypt.compare(password, user.Password);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -76,7 +70,6 @@ app.post('/api/login', async (req, res, next) => {
       });
     }
 
-    // gawa ng jwt token para sa user session
     const secret = process.env.JWT_SECRET || 'fallback_secret_key';
     const token = jwt.sign(
       {
@@ -88,7 +81,6 @@ app.post('/api/login', async (req, res, next) => {
       { expiresIn: '8h' }
     );
 
-    // ibalik response pero wag na wag isasama yung password hash
     return res.status(200).json({
       message: 'Login successful',
       token,
@@ -103,7 +95,7 @@ app.post('/api/login', async (req, res, next) => {
   }
 });
 
-// route pang test ng auth middleware
+// auth test route
 app.get('/api/protected-test', authenticateToken, (req, res) => {
   res.status(200).json({
     message: 'Access granted sa protected route!',
@@ -111,59 +103,10 @@ app.get('/api/protected-test', authenticateToken, (req, res) => {
   });
 });
 
-// kunin lahat ng assets sa db, naka order by pinakabago
-app.get('/api/assets', authenticateToken, async (req, res, next) => {
-  try {
-    const pool = await getPool();
-    const result = await pool.request()
-      .query('SELECT Id, AssetName, Category, SerialNumber, Status, EstimatedValue, CreatedAt FROM Assets ORDER BY CreatedAt DESC');
-
-    res.status(200).json(result.recordset);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// kunin yung specific na asset gamit id
-app.get('/api/assets/:id', authenticateToken, async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    // check muna if valid number yung id
-    const assetId = parseInt(id, 10);
-    if (isNaN(assetId) || assetId <= 0) {
-      return res.status(400).json({
-        error: 'ValidationError',
-        message: 'Asset ID must be a valid positive integer.'
-      });
-    }
-
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('id', sql.Int, assetId)
-      .query('SELECT Id, AssetName, Category, SerialNumber, Status, EstimatedValue, CreatedAt FROM Assets WHERE Id = @id');
-
-    const asset = result.recordset[0];
-
-    // pag walang nahanap na asset na may ganung id
-    if (!asset) {
-      return res.status(404).json({
-        error: 'NotFound',
-        message: `Asset with ID ${assetId} was not found.`
-      });
-    }
-
-    res.status(200).json(asset);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// helper function para parehas validation sa create at update
+// helper pang validate ng fields
 function validateAssetInput(body) {
   const { AssetName, Category, SerialNumber, Status, EstimatedValue } = body || {};
 
-  // check kung complete lahat ng fields
   if (!AssetName || !Category || !SerialNumber || !Status || EstimatedValue === undefined || EstimatedValue === null) {
     return {
       isValid: false,
@@ -171,7 +114,6 @@ function validateAssetInput(body) {
     };
   }
 
-  // check kung may laman at hindi puro whitespace lang
   if (!String(AssetName).trim() || !String(Category).trim() || !String(SerialNumber).trim() || !String(Status).trim()) {
     return {
       isValid: false,
@@ -179,7 +121,6 @@ function validateAssetInput(body) {
     };
   }
 
-  // check kung valid non-negative number
   const numericValue = parseFloat(EstimatedValue);
   if (isNaN(numericValue) || numericValue < 0) {
     return {
@@ -200,7 +141,51 @@ function validateAssetInput(body) {
   };
 }
 
-// magdagdag ng bagong asset sa database
+// get all assets
+app.get('/api/assets', authenticateToken, async (req, res, next) => {
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .query('SELECT Id, AssetName, Category, SerialNumber, Status, EstimatedValue, CreatedAt FROM Assets ORDER BY CreatedAt DESC');
+
+    res.status(200).json(result.recordset);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// get single asset by id
+app.get('/api/assets/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const assetId = parseInt(id, 10);
+    if (isNaN(assetId) || assetId <= 0) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'Asset ID must be a valid positive integer.'
+      });
+    }
+
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.Int, assetId)
+      .query('SELECT Id, AssetName, Category, SerialNumber, Status, EstimatedValue, CreatedAt FROM Assets WHERE Id = @id');
+
+    const asset = result.recordset[0];
+    if (!asset) {
+      return res.status(404).json({
+        error: 'NotFound',
+        message: `Asset with ID ${assetId} was not found.`
+      });
+    }
+
+    res.status(200).json(asset);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// create asset
 app.post('/api/assets', authenticateToken, async (req, res, next) => {
   try {
     const validation = validateAssetInput(req.body);
@@ -214,7 +199,7 @@ app.post('/api/assets', authenticateToken, async (req, res, next) => {
     const { assetName, category, serialNumber, status, estimatedValue } = validation.data;
     const pool = await getPool();
 
-    // check muna if may kaparehas na serial number para iwas duplicate error
+    // chek if existing na sn
     const existing = await pool.request()
       .input('serialNumber', sql.NVarChar(100), serialNumber)
       .query('SELECT Id FROM Assets WHERE SerialNumber = @serialNumber');
@@ -226,7 +211,6 @@ app.post('/api/assets', authenticateToken, async (req, res, next) => {
       });
     }
 
-    // insert gamit parameterized query tapos gamit OUTPUT INSERTED para makuha agad yung bagong record
     const result = await pool.request()
       .input('assetName', sql.NVarChar(100), assetName)
       .input('category', sql.NVarChar(50), category)
@@ -239,19 +223,16 @@ app.post('/api/assets', authenticateToken, async (req, res, next) => {
         VALUES (@assetName, @category, @serialNumber, @status, @estimatedValue)
       `);
 
-    const newAsset = result.recordset[0];
-    res.status(201).json(newAsset);
+    res.status(201).json(result.recordset[0]);
   } catch (err) {
     next(err);
   }
 });
 
-// update ng existing asset sa database
+// update asset
 app.put('/api/assets/:id', authenticateToken, async (req, res, next) => {
   try {
     const { id } = req.params;
-
-    // check muna kung valid positive integer yung id
     const assetId = parseInt(id, 10);
     if (isNaN(assetId) || assetId <= 0) {
       return res.status(400).json({
@@ -260,7 +241,6 @@ app.put('/api/assets/:id', authenticateToken, async (req, res, next) => {
       });
     }
 
-    // gamitin yung shared validation helper
     const validation = validateAssetInput(req.body);
     if (!validation.isValid) {
       return res.status(400).json({
@@ -272,7 +252,6 @@ app.put('/api/assets/:id', authenticateToken, async (req, res, next) => {
     const { assetName, category, serialNumber, status, estimatedValue } = validation.data;
     const pool = await getPool();
 
-    // check kung existing yung i-uupdate na asset
     const checkAsset = await pool.request()
       .input('id', sql.Int, assetId)
       .query('SELECT Id FROM Assets WHERE Id = @id');
@@ -284,7 +263,7 @@ app.put('/api/assets/:id', authenticateToken, async (req, res, next) => {
       });
     }
 
-    // check kung may ibang asset na gumagamit na nung serial number na yun
+    // bawal duplicate sn sa ibang asset
     const duplicateCheck = await pool.request()
       .input('serialNumber', sql.NVarChar(100), serialNumber)
       .input('id', sql.Int, assetId)
@@ -297,7 +276,6 @@ app.put('/api/assets/:id', authenticateToken, async (req, res, next) => {
       });
     }
 
-    // execute update tapos return updated row gamit OUTPUT INSERTED
     const result = await pool.request()
       .input('id', sql.Int, assetId)
       .input('assetName', sql.NVarChar(100), assetName)
@@ -322,7 +300,7 @@ app.put('/api/assets/:id', authenticateToken, async (req, res, next) => {
   }
 });
 
-// 404 Handler for unmatched routes
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     error: 'NotFound',
@@ -330,7 +308,7 @@ app.use((req, res) => {
   });
 });
 
-// Centralized Error Handling Middleware
+// error handler middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled server error:', err);
   const status = err.statusCode || err.status || 500;

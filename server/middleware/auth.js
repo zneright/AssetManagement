@@ -6,7 +6,7 @@ dotenv.config();
 export function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'] || req.headers['Authorization'];
 
-  // check muna if may auth header na pinasa
+  // kunin token sa bearer header
   if (!authHeader) {
     return res.status(401).json({
       error: 'Unauthorized',
@@ -14,7 +14,6 @@ export function authenticateToken(req, res, next) {
     });
   }
 
-  // format dapat is Bearer <token>
   const parts = authHeader.split(' ');
   if (parts.length !== 2 || parts[0] !== 'Bearer' || !parts[1].trim()) {
     return res.status(401).json({
@@ -28,7 +27,6 @@ export function authenticateToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, secret);
-    // save sa request para magamit sa susunod na handlers
     req.user = decoded;
     next();
   } catch (err) {
