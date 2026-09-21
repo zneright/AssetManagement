@@ -1,122 +1,73 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import React, { useState, useEffect } from 'react';
+import { Card, Typography, Tag, Button, Space, Spin, Alert } from 'antd';
+import api from './api';
+
+const { Title, Text } = Typography;
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [serverStatus, setServerStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // chek connection sa backend
+  const checkBackend = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get('/health');
+      setServerStatus(res.data);
+    } catch (err) {
+      setError(err.message || 'Cannot connect to backend server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkBackend();
+  }, []);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: '24px' }}>
+      <Card style={{ width: 480, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', borderRadius: 8 }}>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <div>
+            <Title level={3} style={{ marginBottom: 4 }}>Asset Tracker</Title>
+            <Text type="secondary">Frontend bootstrap foundation check</Text>
+          </div>
 
-      <div className="ticks"></div>
+          <div>
+            <Text strong>Stack Verification:</Text>
+            <div style={{ marginTop: 8 }}>
+              <Space wrap>
+                <Tag color="cyan">React 19</Tag>
+                <Tag color="purple">Vite 8</Tag>
+                <Tag color="blue">Ant Design</Tag>
+                <Tag color="geekblue">Axios</Tag>
+              </Space>
+            </div>
+          </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          <div>
+            <Text strong>Backend API Status:</Text>
+            <div style={{ marginTop: 8 }}>
+              {loading && <Spin size="small" />}
+              {serverStatus && (
+                <Tag color="success">Backend Online ({serverStatus.status})</Tag>
+              )}
+              {error && (
+                <Alert message={error} type="error" showIcon style={{ marginTop: 8 }} />
+              )}
+            </div>
+          </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+          <Button type="primary" onClick={checkBackend} loading={loading} block>
+            Re-test Backend Connection
+          </Button>
+        </Space>
+      </Card>
+    </div>
+  );
 }
 
-export default App
+export default App;
