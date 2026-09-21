@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getPool, sql } from './db.js';
+import { authenticateToken } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -100,6 +101,14 @@ app.post('/api/login', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// route pang test ng auth middleware
+app.get('/api/protected-test', authenticateToken, (req, res) => {
+  res.status(200).json({
+    message: 'Access granted sa protected route!',
+    user: req.user
+  });
 });
 
 // 404 Handler for unmatched routes
