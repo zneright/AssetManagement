@@ -1,68 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Typography, Tag, Button, Space, Spin, Alert } from 'antd';
-import api from './api';
+import React, { useState } from 'react';
+import { Card, Typography, Button, Space, Tag } from 'antd';
+import Login from './components/Login';
 
 const { Title, Text } = Typography;
 
 function App() {
-  const [serverStatus, setServerStatus] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // chek connection sa backend
-  const checkBackend = async () => {
-    setLoading(true);
-    setError(null);
+  const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const res = await api.get('/health');
-      setServerStatus(res.data);
-    } catch (err) {
-      setError(err.message || 'Cannot connect to backend server');
-    } finally {
-      setLoading(false);
+      const saved = localStorage.getItem('user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
     }
+  });
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setCurrentUser(null);
   };
 
-  useEffect(() => {
-    checkBackend();
-  }, []);
+  // kapag hindi pa logged in, pakita login form
+  if (!currentUser) {
+    return <Login onLoginSuccess={(user) => setCurrentUser(user)} />;
+  }
 
+  // temporary view kapag successful login
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: '24px' }}>
-      <Card style={{ width: 480, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', borderRadius: 8 }}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5', padding: '16px' }}>
+      <Card style={{ width: 420, textAlign: 'center', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Tag color="success">Authenticated</Tag>
           <div>
-            <Title level={3} style={{ marginBottom: 4 }}>Asset Tracker</Title>
-            <Text type="secondary">Frontend bootstrap foundation check</Text>
+            <Title level={3} style={{ marginBottom: 4 }}>Welcome, {currentUser.fullName}!</Title>
+            <Text type="secondary">Logged in as @{currentUser.username}</Text>
           </div>
-
-          <div>
-            <Text strong>Stack Verification:</Text>
-            <div style={{ marginTop: 8 }}>
-              <Space wrap>
-                <Tag color="cyan">React 19</Tag>
-                <Tag color="purple">Vite 8</Tag>
-                <Tag color="blue">Ant Design</Tag>
-                <Tag color="geekblue">Axios</Tag>
-              </Space>
-            </div>
-          </div>
-
-          <div>
-            <Text strong>Backend API Status:</Text>
-            <div style={{ marginTop: 8 }}>
-              {loading && <Spin size="small" />}
-              {serverStatus && (
-                <Tag color="success">Backend Online ({serverStatus.status})</Tag>
-              )}
-              {error && (
-                <Alert message={error} type="error" showIcon style={{ marginTop: 8 }} />
-              )}
-            </div>
-          </div>
-
-          <Button type="primary" onClick={checkBackend} loading={loading} block>
-            Re-test Backend Connection
+          <Button onClick={handleLogout} danger block>
+            Log out
           </Button>
         </Space>
       </Card>
