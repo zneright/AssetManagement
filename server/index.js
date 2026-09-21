@@ -111,6 +111,19 @@ app.get('/api/protected-test', authenticateToken, (req, res) => {
   });
 });
 
+// kunin lahat ng assets sa db, naka order by pinakabago
+app.get('/api/assets', authenticateToken, async (req, res, next) => {
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .query('SELECT Id, AssetName, Category, SerialNumber, Status, EstimatedValue, CreatedAt FROM Assets ORDER BY CreatedAt DESC');
+
+    res.status(200).json(result.recordset);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 404 Handler for unmatched routes
 app.use((req, res) => {
   res.status(404).json({
