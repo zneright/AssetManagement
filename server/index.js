@@ -124,6 +124,41 @@ app.get('/api/assets', authenticateToken, async (req, res, next) => {
   }
 });
 
+// kunin yung specific na asset gamit id
+app.get('/api/assets/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // check muna if valid number yung id
+    const assetId = parseInt(id, 10);
+    if (isNaN(assetId) || assetId <= 0) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'Asset ID must be a valid positive integer.'
+      });
+    }
+
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.Int, assetId)
+      .query('SELECT Id, AssetName, Category, SerialNumber, Status, EstimatedValue, CreatedAt FROM Assets WHERE Id = @id');
+
+    const asset = result.recordset[0];
+
+    // pag walang nahanap na asset na may ganung id
+    if (!asset) {
+      return res.status(404).json({
+        error: 'NotFound',
+        message: `Asset with ID ${assetId} was not found.`
+      });
+    }
+
+    res.status(200).json(asset);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 404 Handler for unmatched routes
 app.use((req, res) => {
   res.status(404).json({
