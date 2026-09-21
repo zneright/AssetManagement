@@ -159,57 +159,80 @@ app.get('/api/assets/:id', authenticateToken, async (req, res, next) => {
   }
 });
 
+// helper function para parehas validation sa create at update
+function validateAssetInput(body) {
+  const { AssetName, Category, SerialNumber, Status, EstimatedValue } = body || {};
+
+  // check kung complete lahat ng fields
+  if (!AssetName || !Category || !SerialNumber || !Status || EstimatedValue === undefined || EstimatedValue === null) {
+    return {
+      isValid: false,
+      message: 'All fields are required: AssetName, Category, SerialNumber, Status, EstimatedValue.'
+    };
+  }
+
+  // check kung may laman at hindi puro whitespace lang
+  if (!String(AssetName).trim() || !String(Category).trim() || !String(SerialNumber).trim() || !String(Status).trim()) {
+    return {
+      isValid: false,
+      message: 'Fields cannot be empty or whitespace only.'
+    };
+  }
+
+  // check kung valid non-negative number
+  const numericValue = parseFloat(EstimatedValue);
+  if (isNaN(numericValue) || numericValue < 0) {
+    return {
+      isValid: false,
+      message: 'EstimatedValue must be a valid non-negative number.'
+    };
+  }
+
+  return {
+    isValid: true,
+    data: {
+      assetName: String(AssetName).trim(),
+      category: String(Category).trim(),
+      serialNumber: String(SerialNumber).trim(),
+      status: String(Status).trim(),
+      estimatedValue: numericValue
+    }
+  };
+}
+
 // magdagdag ng bagong asset sa database
 app.post('/api/assets', authenticateToken, async (req, res, next) => {
   try {
-    const { AssetName, Category, SerialNumber, Status, EstimatedValue } = req.body;
-
-    // validation: check kung kumpleto lahat ng required fields
-    if (!AssetName || !Category || !SerialNumber || !Status || EstimatedValue === undefined || EstimatedValue === null) {
+    const validation = validateAssetInput(req.body);
+    if (!validation.isValid) {
       return res.status(400).json({
         error: 'ValidationError',
-        message: 'All fields are required: AssetName, Category, SerialNumber, Status, EstimatedValue.'
+        message: validation.message
       });
     }
 
-    // check kung hindi puro space lang
-    if (!String(AssetName).trim() || !String(Category).trim() || !String(SerialNumber).trim() || !String(Status).trim()) {
-      return res.status(400).json({
-        error: 'ValidationError',
-        message: 'Fields cannot be empty or whitespace only.'
-      });
-    }
-
-    // check kung valid number yung EstimatedValue at hindi negative
-    const numericValue = parseFloat(EstimatedValue);
-    if (isNaN(numericValue) || numericValue < 0) {
-      return res.status(400).json({
-        error: 'ValidationError',
-        message: 'EstimatedValue must be a valid non-negative number.'
-      });
-    }
-
+    const { assetName, category, serialNumber, status, estimatedValue } = validation.data;
     const pool = await getPool();
 
     // check muna if may kaparehas na serial number para iwas duplicate error
     const existing = await pool.request()
-      .input('serialNumber', sql.NVarChar(100), String(SerialNumber).trim())
+      .input('serialNumber', sql.NVarChar(100), serialNumber)
       .query('SELECT Id FROM Assets WHERE SerialNumber = @serialNumber');
 
     if (existing.recordset.length > 0) {
       return res.status(409).json({
         error: 'Conflict',
-        message: `An asset with SerialNumber '${String(SerialNumber).trim()}' already exists.`
+        message: `An asset with SerialNumber '${serialNumber}' already exists.`
       });
     }
 
     // insert gamit parameterized query tapos gamit OUTPUT INSERTED para makuha agad yung bagong record
     const result = await pool.request()
-      .input('assetName', sql.NVarChar(100), String(AssetName).trim())
-      .input('category', sql.NVarChar(50), String(Category).trim())
-      .input('serialNumber', sql.NVarChar(100), String(SerialNumber).trim())
-      .input('status', sql.NVarChar(50), String(Status).trim())
-      .input('estimatedValue', sql.Decimal(18, 2), numericValue)
+      .input('assetName', sql.NVarChar(100), assetName)
+      .input('category', sql.NVarChar(50), category)
+      .input('serialNumber', sql.NVarChar(100), serialNumber)
+      .input('status', sql.NVarChar(50), status)
+      .input('estimatedValue', sql.Decimal(18, 2), estimatedValue)
       .query(`
         INSERT INTO Assets (AssetName, Category, SerialNumber, Status, EstimatedValue)
         OUTPUT INSERTED.Id, INSERTED.AssetName, INSERTED.Category, INSERTED.SerialNumber, INSERTED.Status, INSERTED.EstimatedValue, INSERTED.CreatedAt
@@ -218,6 +241,82 @@ app.post('/api/assets', authenticateToken, async (req, res, next) => {
 
     const newAsset = result.recordset[0];
     res.status(201).json(newAsset);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// update ng existing asset sa database
+app.put('/api/assets/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // check muna kung valid positive integer yung id
+    const assetId = parseInt(id, 10);
+    if (isNaN(assetId) || assetId <= 0) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'Asset ID must be a valid positive integer.'
+      });
+    }
+
+    // gamitin yung shared validation helper
+    const validation = validateAssetInput(req.body);
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: validation.message
+      });
+    }
+
+    const { assetName, category, serialNumber, status, estimatedValue } = validation.data;
+    const pool = await getPool();
+
+    // check kung existing yung i-uupdate na asset
+    const checkAsset = await pool.request()
+      .input('id', sql.Int, assetId)
+      .query('SELECT Id FROM Assets WHERE Id = @id');
+
+    if (checkAsset.recordset.length === 0) {
+      return res.status(404).json({
+        error: 'NotFound',
+        message: `Asset with ID ${assetId} was not found.`
+      });
+    }
+
+    // check kung may ibang asset na gumagamit na nung serial number na yun
+    const duplicateCheck = await pool.request()
+      .input('serialNumber', sql.NVarChar(100), serialNumber)
+      .input('id', sql.Int, assetId)
+      .query('SELECT Id FROM Assets WHERE SerialNumber = @serialNumber AND Id <> @id');
+
+    if (duplicateCheck.recordset.length > 0) {
+      return res.status(409).json({
+        error: 'Conflict',
+        message: `An asset with SerialNumber '${serialNumber}' already exists.`
+      });
+    }
+
+    // execute update tapos return updated row gamit OUTPUT INSERTED
+    const result = await pool.request()
+      .input('id', sql.Int, assetId)
+      .input('assetName', sql.NVarChar(100), assetName)
+      .input('category', sql.NVarChar(50), category)
+      .input('serialNumber', sql.NVarChar(100), serialNumber)
+      .input('status', sql.NVarChar(50), status)
+      .input('estimatedValue', sql.Decimal(18, 2), estimatedValue)
+      .query(`
+        UPDATE Assets
+        SET AssetName = @assetName,
+            Category = @category,
+            SerialNumber = @serialNumber,
+            Status = @status,
+            EstimatedValue = @estimatedValue
+        OUTPUT INSERTED.Id, INSERTED.AssetName, INSERTED.Category, INSERTED.SerialNumber, INSERTED.Status, INSERTED.EstimatedValue, INSERTED.CreatedAt
+        WHERE Id = @id
+      `);
+
+    res.status(200).json(result.recordset[0]);
   } catch (err) {
     next(err);
   }
