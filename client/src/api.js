@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { message } from 'antd';
 
 // setup axios instance
 const api = axios.create({
@@ -17,13 +18,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// pag 401 unauth or expired na token, linisin storage
+// catch ng network error or expired session
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    if (!error.response) {
+      message.error('Unable to connect to server. Please check your network.');
+    } else if (error.response.status === 401) {
+      const hadToken = Boolean(localStorage.getItem('token'));
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      if (hadToken) {
+        message.warning('Session expired. Please log in again.');
+      }
       window.dispatchEvent(new Event('auth:logout'));
     }
     return Promise.reject(error);

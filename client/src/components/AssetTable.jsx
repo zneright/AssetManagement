@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Typography, Button, Space, Input, Select, Popconfirm, message } from 'antd';
+import { Table, Tag, Typography, Button, Space, Input, Select, Popconfirm, Row, Col, Card, Statistic, message } from 'antd';
 import api from '../api';
 import AssetModal from './AssetModal';
 
@@ -68,6 +68,15 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
     if (s.includes('maintenance') || s.includes('repair')) return 'orange';
     return 'default';
   };
+
+  // kalkula ng summary stats para sa cards
+  const totalCount = assets.length;
+  const totalValue = assets.reduce((sum, item) => sum + (Number(item.EstimatedValue) || 0), 0);
+  const activeCount = assets.filter((item) => (item.Status || '').toLowerCase() === 'active').length;
+  const inRepairCount = assets.filter((item) => {
+    const s = (item.Status || '').toLowerCase();
+    return s.includes('repair') || s.includes('maintenance');
+  }).length;
 
   // filering ng assets client side
   const filteredAssets = assets.filter((item) => {
@@ -144,6 +153,43 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
 
   return (
     <div>
+      {/* stats cards sa taas */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+        <Col xs={24} sm={12} md={6}>
+          <Card size="small" style={{ borderRadius: 6, background: '#fafafa' }}>
+            <Statistic title="Total Assets" value={totalCount} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card size="small" style={{ borderRadius: 6, background: '#fafafa' }}>
+            <Statistic
+              title="Total Value"
+              value={totalValue}
+              precision={2}
+              prefix="₱"
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card size="small" style={{ borderRadius: 6, background: '#fafafa' }}>
+            <Statistic
+              title="Active Assets"
+              value={activeCount}
+              valueStyle={{ color: '#3f8600' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card size="small" style={{ borderRadius: 6, background: '#fafafa' }}>
+            <Statistic
+              title="In Repair"
+              value={inRepairCount}
+              valueStyle={{ color: '#d46b08' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
       <div
         style={{
           display: 'flex',
@@ -189,6 +235,9 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
         rowKey="Id"
         loading={loading}
         pagination={{ pageSize: 8 }}
+        locale={{
+          emptyText: assets.length === 0 ? 'No assets registered yet' : 'No matching assets found',
+        }}
       />
 
       <AssetModal
