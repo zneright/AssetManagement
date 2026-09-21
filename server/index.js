@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { getPool, sql } from './db.js';
 
 dotenv.config();
@@ -17,7 +19,7 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Parameterized database query test endpoint (Phase 7)
+// Parameterized database query test endpoint
 app.get('/api/test-db', async (req, res, next) => {
   try {
     const pool = await getPool();
@@ -29,6 +31,71 @@ app.get('/api/test-db', async (req, res, next) => {
     res.status(200).json({
       status: 'ok',
       result: result.recordset[0]
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Login endpoint (Phase 9)
+app.post('/api/login', async (req, res, next) => {
+  try {
+    const { username, password } = req.body;
+
+    // check muna if may laman yung username at password
+    if (!username || !password || !username.trim() || !password.trim()) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'Username and password are required.'
+      });
+    }
+
+    // hanapin si user sa database gamit parameterized query
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('username', sql.NVarChar(50), username.trim())
+      .query('SELECT Id, Username, Password, FullName FROM Users WHERE Username = @username');
+
+    const user = result.recordset[0];
+
+    // pag walang nahanap na user sa db
+    if (!user) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid username or password.'
+      });
+    }
+
+    // compare password hash gamit bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.Password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid username or password.'
+      });
+    }
+
+    // gawa ng jwt token para sa user session
+    const secret = process.env.JWT_SECRET || 'fallback_secret_key';
+    const token = jwt.sign(
+      {
+        id: user.Id,
+        username: user.Username,
+        fullName: user.FullName
+      },
+      secret,
+      { expiresIn: '8h' }
+    );
+
+    // ibalik response pero wag na wag isasama yung password hash
+    return res.status(200).json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user.Id,
+        username: user.Username,
+        fullName: user.FullName
+      }
     });
   } catch (err) {
     next(err);
