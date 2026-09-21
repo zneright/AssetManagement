@@ -1,13 +1,9 @@
 import sql from 'mssql';
 import { getPool, closePool, dbConfig } from './db.js';
 
-console.log('========================================');
-console.log('PHASE 6: MSSQL CONNECTION TEST SUITE');
-console.log('========================================\n');
+console.log('Testing MSSQL Database Connection...\n');
 
-// ----------------------------------------------------
 // TEST 1: Correct Credentials
-// ----------------------------------------------------
 console.log('--- TEST 1: Testing with CORRECT credentials ---');
 try {
   const pool = await getPool();
@@ -20,9 +16,7 @@ try {
   console.error('❌ TEST 1 FAILED:', err.message);
 }
 
-// ----------------------------------------------------
 // TEST 2: Incorrect Credentials
-// ----------------------------------------------------
 console.log('\n--- TEST 2: Testing with INCORRECT credentials ---');
 const badCredsConfig = {
   ...dbConfig,
@@ -38,9 +32,7 @@ try {
   console.log('   Error Message:', err.message);
 }
 
-// ----------------------------------------------------
 // TEST 3: Database Unavailable (invalid port/host)
-// ----------------------------------------------------
 console.log('\n--- TEST 3: Testing with UNAVAILABLE database (invalid port) ---');
 const unavailableConfig = {
   ...dbConfig,

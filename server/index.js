@@ -19,7 +19,7 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Parameterized database query test endpoint
+// test connection lang sa db
 app.get('/api/test-db', async (req, res, next) => {
   try {
     const pool = await getPool();
@@ -37,7 +37,7 @@ app.get('/api/test-db', async (req, res, next) => {
   }
 });
 
-// Login endpoint (Phase 9)
+// login route para makakuha ng token si user
 app.post('/api/login', async (req, res, next) => {
   try {
     const { username, password } = req.body;

@@ -14,9 +14,7 @@ if (!username || !plaintextPassword || !fullName) {
 }
 
 async function seedUser() {
-  console.log('========================================');
-  console.log('PHASE 8: SEED DEVELOPMENT USER');
-  console.log('========================================\n');
+  console.log('--- Seed Development User ---');
 
   try {
     const pool = await getPool();
@@ -82,7 +80,7 @@ async function seedUser() {
     console.log('bcrypt.compare()?  ', isMatch ? '✅ MATCHES' : '❌ DOES NOT MATCH');
 
     if (!isPlaintext && isBcryptFormat && isMatch) {
-      console.log('\n✅ Phase 8 verified: Seed user created and validated with secure bcrypt hashing.');
+      console.log('\nSeed user ok na sa database!');
     } else {
       console.error('\n❌ Verification failed.');
       process.exitCode = 1;
