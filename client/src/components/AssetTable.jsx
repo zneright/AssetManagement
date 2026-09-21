@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Typography, Button, Space, Input, Select, message } from 'antd';
 import api from '../api';
+import AssetModal from './AssetModal';
 
 const { Text } = Typography;
 const { Search } = Input;
@@ -10,6 +11,9 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -30,7 +34,20 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
     return () => {
       isMounted = false;
     };
-  }, [refreshTrigger]);
+  }, [refreshTrigger, reloadKey]);
+
+  // buksan modal para sa new asset
+  const handleOpenCreate = () => {
+    setSelectedAsset(null);
+    setModalOpen(true);
+  };
+
+  // para sa edit naman
+  const handleOpenEdit = (record) => {
+    setSelectedAsset(record);
+    setModalOpen(true);
+    if (onEdit) onEdit(record);
+  };
 
   // kulay ng status tag
   const getStatusColor = (status) => {
@@ -93,7 +110,7 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
       key: 'actions',
       render: (_, record) => (
         <Space size="small">
-          <Button size="small" onClick={() => onEdit && onEdit(record)}>
+          <Button size="small" onClick={() => handleOpenEdit(record)}>
             Edit
           </Button>
           <Button size="small" danger onClick={() => onDelete && onDelete(record)}>
@@ -122,12 +139,12 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
             allowClear
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 260 }}
+            style={{ width: 240 }}
           />
           <Select
             value={statusFilter}
             onChange={(val) => setStatusFilter(val)}
-            style={{ width: 140 }}
+            style={{ width: 130 }}
             options={[
               { value: 'ALL', label: 'All Statuses' },
               { value: 'Active', label: 'Active' },
@@ -135,6 +152,9 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
               { value: 'Retired', label: 'Retired' },
             ]}
           />
+          <Button type="primary" onClick={handleOpenCreate}>
+            + Add Asset
+          </Button>
         </Space>
 
         <Text type="secondary" style={{ fontSize: 13 }}>
@@ -148,6 +168,13 @@ function AssetTable({ onEdit, onDelete, refreshTrigger }) {
         rowKey="Id"
         loading={loading}
         pagination={{ pageSize: 8 }}
+      />
+
+      <AssetModal
+        open={modalOpen}
+        initialValues={selectedAsset}
+        onClose={() => setModalOpen(false)}
+        onSuccess={() => setReloadKey((k) => k + 1)}
       />
     </div>
   );
